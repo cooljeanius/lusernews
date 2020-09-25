@@ -51,30 +51,12 @@ def application(environ, start_response):
     return response(environ, start_response)
 
 
-def helloworld(request):
-    auth_user(request.cookies.get('auth'))
-    auth = request.cookies.get('auth')
-    logout = request.GET.get('logout')
-    if g.user:
-        if logout:
-            update_auth_token(g.user)
-            return webob.Response('logout')
-        else:
-            body = """<html>
-            <a href='/logout?apisecret=%s'>logout</a><br/>
-
-            %s</html>""" %  (g.user['apisecret'], str(g.user))
-            return webob.Response(body)
-    else:
-        return webob.Response('hello world anonymous')
-
-
 def login(request):
     auth_user(request.cookies.get('auth'))
     if g.user:
         return util.redirect('/')
     else:
-        return util.static_response('login.html')
+        return util.render('login.pat')
 
 
 def signup(request):
@@ -82,7 +64,7 @@ def signup(request):
     if g.user:
         return util.redirect('/')
 
-    return util.static_response('signup.html')
+    return util.render('signup.pat', invite=config.InviteOnlySignUp)
 
 
 def logout(request):
@@ -239,3 +221,8 @@ def saved(request, start=None):
                        start=start, next=next)
 
 
+def lusers(request):
+    auth_user(request.cookies.get('auth'))
+
+    users = get_new_users(10)
+    return util.render('lusers.pat', users=users, user=g.user)

@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-	<title>Latest comments - Luser News</title>
+	<title>new lusers - Luser News</title>
 	<link rel="stylesheet" type="text/css" href="/css/bootstrap.css"/>
 	<link rel="stylesheet" type="text/css" href="/css/lusernews.css"/>
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
@@ -19,7 +19,7 @@
 		  <ul class="nav">
 			<li><a href="/top">top</a></li>
 			<li><a href="/latest">new</a></li>
-			<li class="active"><a href="#">comments</a></li>
+			<li><a href="/comments">comments</a></li>
 			<li><a href="/submit">submit</a></li>
 		  </ul>
 
@@ -39,11 +39,22 @@
 	</div>
 
 	<div class="container">
-	  <div id="recentcomments" class="dsq-widget">
-		<script type="text/javascript" src="http://{{disqus_name}}.disqus.com/recent_comments_widget.js?num_items=20&hide_avatars=0&avatar_size=32&excerpt_length=200">
-		</script>
+
+	  <div class="page-header">
+		<h3>New Lusers</h3>
 	  </div>
 
+	  <div class="lusers">
+
+		{% for u in users %}
+
+		<span class="luser">
+		  <a href="/luser/{{u['username']}}">{{u['username']}}</a>
+		</span>
+
+		{% endfor %}
+
+	  </div>
 
 	</div>
 

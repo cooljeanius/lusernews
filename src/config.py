@@ -30,6 +30,7 @@ KarmaIncrementComment = 1
 
 # Comments
 CommentMaxLength = 4096
+DisqusName = 'example'   #replace it with your forum shortname
 
 # News and ranking
 NewsAgePadding = 100
@@ -45,8 +46,7 @@ SavedNewsPerPage = 30
 TopNewsAgeLimit = 60*72
 
 # path
-
-HomePath = "~/lusernews/"
+HomePath = "~/lusernews2/"
 
 TemplatesPath = "templates"
 StaticPath = "static"
@@ -56,3 +56,14 @@ LogFile = "logs/error.log"
 LogLevel = "DEBUG"
 
 PidFile = "logs/luser.pid"
+
+#
+InviteOnlySignUp = False
+
+# e.g. UA-29222488-1
+GoogleAnalytics = ""
+
+github_client_id = "ZZZ"
+github_secret = 'top-secret'
+github_callback_url = 'http://example.com/oauth/github/callback'
+

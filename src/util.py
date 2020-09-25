@@ -46,16 +46,20 @@ def str_elapsed(t):
     seconds = int(time.time()) - t
     if seconds <= 1:
         return "now"
-    if seconds < 60:
-        return "%s seconds ago" % (seconds)
-    if seconds < 60 * 60:
-        return "%d minutes ago" % (seconds / 60)
 
-    if seconds < 3600 * 24:
-        return "%d hours ago" % (seconds / 3600)
+    elif seconds < 60:
+        return "%s seconds ago" % seconds
 
-    else:
-        return "%d days ago" % (seconds / 3600 / 24)
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return "%d minute%s ago" % (minutes, 's' if minutes > 1 else '')
+
+    elif seconds < 86400:
+        hours = seconds / 3600
+        return "%d hour%s ago" % (hours, 's' if hours > 1 else '')
+
+    days = seconds / 86400
+    return "%d day%s ago" % (days, 's' if days > 1 else '')
 
 
 def redirect(location='/'):
@@ -73,6 +77,9 @@ def static_response(file):
 
 #template
 def render(template, **kwargs):
+    kwargs.update({'disqus_name': config.DisqusName})
+    if config.GoogleAnalytics:
+        kwargs.update({'ga': config.GoogleAnalytics})
     return webob.Response(g.jj.get_template(template).render(kwargs))
 
 def rfc822(when=None):

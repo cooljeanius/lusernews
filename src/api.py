@@ -13,7 +13,8 @@ from news import *
 def signup(request):
     username = request.POST.get('username')
     password = request.POST.get('password')
-    invitecode = request.POST.get('invitecode')
+    if config.InviteOnlySignUp:
+        invitecode = request.POST.get('invitecode')
 
     username, msg = util.check_string(username, 2, 20, config.UsernameChars)
     if not username:
@@ -33,16 +34,17 @@ def signup(request):
 
     r = g.redis
 
-    #race condition here.
-    if not r.sismember('invite.code', invitecode):
-        result = {
+    if config.InviteOnlySignUp:
+        #race condition here.
+        if not r.sismember('invite.code', invitecode):
+            result = {
             'status': 'error',
             'error': 'invalid invitation code',
             }
-        return util.json_response(result)
+            return util.json_response(result)
 
-    #mark as used
-    r.smove('invite.code', 'invite.code.used', invitecode)
+        #mark as used
+        r.smove('invite.code', 'invite.code.used', invitecode)
 
     #XXX proxied requests have the same REMOTE_ADDR
     auth, msg = create_user(username, password, request.environ['REMOTE_ADDR'])
@@ -272,8 +274,11 @@ def update_profile(request):
                 }
             return util.json_response(result)
 
-        r.hset("user:" + g.user['id'], "password",
-               util.hash_password(password, g.user['salt']))
+        salt = g.user.get('salt', util.get_rand())
+        r.hmset("user:" + g.user['id'], {
+                "password": util.hash_password(password, salt),
+                "salt": salt
+                })
 
     r.hmset("user:" + g.user['id'], {
             "about": about.rstrip(),
@@ -310,4 +315,3 @@ def vote_news(request):
         return util.json_response({"status": "ok" })
     else:
         return util.json_response({"status": "error" })
-
