@@ -512,7 +512,7 @@ class Server:
     def verify_request(self, request, consumer, token):
         """Verifies an api call and checks all the parameters."""
 
-        version = self._get_version(request)
+        self._get_version(request)
         self._check_signature(request, consumer, token)
         parameters = request.get_nonoauth_parameters()
         return parameters
@@ -575,7 +575,7 @@ class Server:
                 "Invalid signature. Expected signature base " "string: %s" % base
             )
 
-        built = signature_method.sign(request, consumer, token)
+        signature_method.sign(request, consumer, token)
 
     def _check_timestamp(self, timestamp):
         """Verify that timestamp is recentish."""
