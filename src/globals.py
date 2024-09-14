@@ -14,5 +14,3 @@ def init():
 
     loader = jinja2.FileSystemLoader(config.TemplatesPath)
     jj = jinja2.Environment(loader=loader)
-
-

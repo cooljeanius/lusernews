@@ -20,7 +20,7 @@ def insert_news(title, url, text, user_id):
     # title+url anyway.
     textpost = not url
     if textpost:
-        url = "text://" + text[0:config.CommentMaxLength]
+        url = "text://" + text[0 : config.CommentMaxLength]
 
     # Check for already posted news with the same URL.
     nid = r.get("url:" + url)
@@ -29,7 +29,9 @@ def insert_news(title, url, text, user_id):
     # We can finally insert the news.
     ctime = int(time.time())
     news_id = r.incr("news.count")
-    r.hmset("news:%s" % news_id, {
+    r.hmset(
+        "news:%s" % news_id,
+        {
             "id": news_id,
             "title": title,
             "url": url,
@@ -39,11 +41,12 @@ def insert_news(title, url, text, user_id):
             "rank": 0,
             "up": 0,
             "down": 0,
-            "comments": 0
-            })
+            "comments": 0,
+        },
+    )
 
     # The posting user virtually upvoted the news posting it
-    rank, error = do_vote_news(news_id, 'up')
+    rank, error = do_vote_news(news_id, "up")
     # Add the news to the user submitted news
     r.zadd("user.posted:%s" % user_id, ctime, news_id)
     # Add the news into the chronological view
@@ -55,7 +58,7 @@ def insert_news(title, url, text, user_id):
         r.setex("url:" + url, config.PreventRepostTime, news_id)
     # Set a timeout indicating when the user may post again
     if config.NewsSubmissionBreak > 0:
-        r.setex("user:%s:submitted_recently" % user_id, config.NewsSubmissionBreak, '1')
+        r.setex("user:%s:submitted_recently" % user_id, config.NewsSubmissionBreak, "1")
     return news_id
 
 
@@ -67,10 +70,10 @@ def insert_news(title, url, text, user_id):
 #             the specified user_id) false is returned.
 def edit_news(news_id, title, url, text, user_id):
     news = get_news_by_id(news_id)
-    if not news or news.get('del') or int(news['user_id']) != int(user_id):
+    if not news or news.get("del") or int(news["user_id"]) != int(user_id):
         return False
 
-    if not int(news['ctime']) > (time.time() - config.NewsEditTime):
+    if not int(news["ctime"]) > (time.time() - config.NewsEditTime):
         return False
 
     # If we don't have an url but a comment, we turn the url into
@@ -78,34 +81,32 @@ def edit_news(news_id, title, url, text, user_id):
     # title+url anyway.
     textpost = not url
     if textpost:
-        url = "text://" + text[0:config.CommentMaxLength]
+        url = "text://" + text[0 : config.CommentMaxLength]
 
     r = g.redis
     # Even for edits don't allow to change the URL to the one of a
     # recently posted news.
-    if not textpost and url != news['url']:
+    if not textpost and url != news["url"]:
         if r.get("url:" + url):
             return False
         # No problems with this new url, but the url changed
         # so we unblock the old one and set the block in the new one.
         # Otherwise it is easy to mount a DOS attack.
-        r.delete("url:" + news['url'])
+        r.delete("url:" + news["url"])
         r.setex("url:" + url, config.PreventRepostTime, news_id)
 
     # Edit the news fields.
-    r.hmset("news:%s" % (news_id),
-            {"title": title,
-            "url": url})
+    r.hmset("news:%s" % (news_id), {"title": title, "url": url})
     return news_id
 
 
 # Mark an existing news as removed.
 def del_news(news_id, user_id):
     news = get_news_by_id(news_id)
-    if not news or news.get('del') or int(news['user_id']) != int(user_id):
+    if not news or news.get("del") or int(news["user_id"]) != int(user_id):
         return False
 
-    if not int(news['ctime']) > (time.time() - config.NewsEditTime):
+    if not int(news["ctime"]) > (time.time() - config.NewsEditTime):
         return False
 
     r = g.redis.pipeline()
@@ -142,14 +143,16 @@ def do_vote_news(news_id, vote_type):
 
     # Now it's time to check if the user already voted that news, either
     # up or down. If so return now.
-    if r.zscore("news.up:%s" % news_id, user['id']) or\
-            r.zscore("news.down:%s" % news_id, user['id']):
+    if r.zscore("news.up:%s" % news_id, user["id"]) or r.zscore(
+        "news.down:%s" % news_id, user["id"]
+    ):
         return False, "Duplicated vote."
 
-    if user['id'] != news['user_id']:
+    if user["id"] != news["user_id"]:
         # Check if the user has enough karma to perform this operation
-        if (vote_type == "up" and user['karma']  < config.NewsUpvoteMinKarma) or \
-                (vote_type == "down" and (user['karma'] < config.NewsDownvoteMinKarma)):
+        if (vote_type == "up" and user["karma"] < config.NewsUpvoteMinKarma) or (
+            vote_type == "down" and (user["karma"] < config.NewsDownvoteMinKarma)
+        ):
             return False, "You don't have enough karma to vote " + vote_type
 
     # News was not already voted by that user. Add the vote.
@@ -158,29 +161,27 @@ def do_vote_news(news_id, vote_type):
     # and the zadd, this will not result in inconsistencies as we will just
     # update the vote time with ZADD.
     now = int(time.time())
-    if r.zadd("news.%s:%s" % (vote_type, news_id), now, user['id']):
+    if r.zadd("news.{}:{}".format(vote_type, news_id), now, user["id"]):
         r.hincrby("news:%s" % news_id, vote_type, 1)
 
-    if vote_type == 'up':
-        r.zadd("user.saved:%s" % user['id'], now, news_id)
+    if vote_type == "up":
+        r.zadd("user.saved:%s" % user["id"], now, news_id)
 
     # Compute the new values of score and karma, updating the news accordingly.
     score = compute_news_score(news)
     news["score"] = score
     rank = compute_news_rank(news)
-    r.hmset("news:%s" % (news_id),
-           {"score": score,
-            "rank": rank})
-    r.zadd("news.top",rank, news_id)
+    r.hmset("news:%s" % (news_id), {"score": score, "rank": rank})
+    r.zadd("news.top", rank, news_id)
 
     # Remove some karma to the user if needed, and transfer karma to the
     # news owner in the case of an upvote.
-    if user['id'] != news['user_id']:
+    if user["id"] != news["user_id"]:
         if vote_type == "up":
-            increment_user_karma_by(user['id'], -config.NewsUpvoteKarmaCost)
-            increment_user_karma_by(news['user_id'], config.NewsUpvoteKarmaTransfered)
+            increment_user_karma_by(user["id"], -config.NewsUpvoteKarmaCost)
+            increment_user_karma_by(news["user_id"], config.NewsUpvoteKarmaTransfered)
         else:
-            increment_user_karma_by(user['id'], -config.NewsDownvoteKarmaCost)
+            increment_user_karma_by(user["id"], -config.NewsDownvoteKarmaCost)
 
     return rank, None
 
@@ -210,22 +211,22 @@ def compute_news_score(news):
 # The general forumla is RANK = SCORE / (AGE ^ AGING_FACTOR)
 def compute_news_rank(news):
     now = int(time.time())
-    age = (now - int(news["ctime"])) / 60.0  #in minutes
+    age = (now - int(news["ctime"])) / 60.0  # in minutes
 
     score = float(news["score"])
 
     if score <= 0:
-        rank = score - (age ** config.RankAgingFactor)/20000
+        rank = score - (age**config.RankAgingFactor) / 20000
 
     else:
-        rank = ((score-0.9)*20000) / \
-            ((age+config.NewsAgePadding)**config.RankAgingFactor)
+        rank = ((score - 0.9) * 20000) / (
+            (age + config.NewsAgePadding) ** config.RankAgingFactor
+        )
 
     if age > config.TopNewsAgeLimit:
         rank -= 6
 
     return rank
-
 
 
 # Updating the rank would require some cron job and worker in theory as
@@ -262,7 +263,7 @@ def get_news_by_id(news_ids, update_rank=False):
     r = g.redis
     pl = r.pipeline()
     for nid in news_ids:
-        pl.hgetall('news:%s' % nid)
+        pl.hgetall("news:%s" % nid)
 
     news = pl.execute()
     if not news:
@@ -285,24 +286,24 @@ def get_news_by_id(news_ids, update_rank=False):
 
     # Get the associated users information
     for n in news:
-        pl.hget('user:%s' % n['user_id'], 'username')
+        pl.hget("user:%s" % n["user_id"], "username")
     usernames = pl.execute()
     for i, n in enumerate(news):
-        n['username'] = usernames[i]
+        n["username"] = usernames[i]
 
     # Load $User vote information if we are in the context of a
     # registered user.
     if g.user:
         for n in news:
-            pl.zscore("news.up:%s" % n['id'], g.user['id'])
-            pl.zscore("news.down:%s" % n['id'], g.user['id'])
+            pl.zscore("news.up:%s" % n["id"], g.user["id"])
+            pl.zscore("news.down:%s" % n["id"], g.user["id"])
 
         votes = pl.execute()
         for i, n in enumerate(news):
-            if votes[i*2]:
-                n['voted'] = 'up'
-            elif votes[(i*2)+1]:
-                n['voted'] = 'down'
+            if votes[i * 2]:
+                n["voted"] = "up"
+            elif votes[(i * 2) + 1]:
+                n["voted"] = "down"
 
     # Return an array if we got an array as input, otherwise
     # the single element the caller requested.
@@ -324,10 +325,10 @@ def get_news_by_id(news_ids, update_rank=False):
 def get_top_news(start=0, count=config.TopNewsPerPage):
     r = g.redis
     numitems = r.zcard("news.top")
-    news_ids = r.zrevrange("news.top", start, start+(count-1))
+    news_ids = r.zrevrange("news.top", start, start + (count - 1))
     result = get_news_by_id(news_ids, update_rank=True)
     # Sort by rank before returning, since we adjusted ranks during iteration.
-    result.sort(cmp=lambda a, b: cmp(float(b['rank']), float(a["rank"])))
+    result.sort(cmp=lambda a, b: cmp(float(b["rank"]), float(a["rank"])))
     return result, numitems
 
 
@@ -368,22 +369,20 @@ def news_text(news):
 def hack_news(news):
     if isinstance(news, list):
         for n in news:
-            n['when'] = util.str_elapsed(int(n['ctime']))
-            n['domain'] = news_domain(n)
-            if not n['domain']:
-                n['url'] = '/news/%s' % n['id']
-            n['title'] = n['title'].decode('utf-8')
-            #rss pubDate
-            n['date'] = util.rfc822(int(n['ctime']))
+            n["when"] = util.str_elapsed(int(n["ctime"]))
+            n["domain"] = news_domain(n)
+            if not n["domain"]:
+                n["url"] = "/news/%s" % n["id"]
+            n["title"] = n["title"].decode("utf-8")
+            # rss pubDate
+            n["date"] = util.rfc822(int(n["ctime"]))
     else:
-        news['when'] = util.str_elapsed(int(news['ctime']))
-        news['domain'] = news_domain(news)
-        if not news['domain']:
-            news['text'] = news_text(news).decode('utf-8')
-            news['url'] = '/news/%s' % news['id']
-        news['title'] = news['title'].decode('utf-8')
-        if g.user and g.user['id'] == news['user_id'] and\
-                not news.get('del'):
-            if time.time() - int(news['ctime']) < config.NewsEditTime:
-                news['showedit'] = True
-
+        news["when"] = util.str_elapsed(int(news["ctime"]))
+        news["domain"] = news_domain(news)
+        if not news["domain"]:
+            news["text"] = news_text(news).decode("utf-8")
+            news["url"] = "/news/%s" % news["id"]
+        news["title"] = news["title"].decode("utf-8")
+        if g.user and g.user["id"] == news["user_id"] and not news.get("del"):
+            if time.time() - int(news["ctime"]) < config.NewsEditTime:
+                news["showedit"] = True

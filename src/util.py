@@ -4,9 +4,9 @@ import os
 import binascii
 import webob
 import webob.exc
-import jinja2
 import globals as g
 import config
+
 
 # Return the hex representation of an unguessable 160 bit random number.
 def get_rand(length=20):
@@ -15,6 +15,7 @@ def get_rand(length=20):
 
 def hash_password(password, salt):
     from pbkdf2 import pbkdf2_hex
+
     return pbkdf2_hex(password, salt, config.PBKDF2Iterations)
 
 
@@ -35,9 +36,9 @@ def check_string(string, minlen=-1, maxlen=-1, charset=None):
     if charset:
         for c in string:
             if c not in charset:
-                return None, 'invalid char'
+                return None, "invalid char"
 
-    return string, ''
+    return string, ""
 
 
 # Given an unix time in the past returns a string stating how much time
@@ -52,21 +53,23 @@ def str_elapsed(t):
 
     elif seconds < 3600:
         minutes = seconds / 60
-        return "%d minute%s ago" % (minutes, 's' if minutes > 1 else '')
+        return "%d minute%s ago" % (minutes, "s" if minutes > 1 else "")
 
     elif seconds < 86400:
         hours = seconds / 3600
-        return "%d hour%s ago" % (hours, 's' if hours > 1 else '')
+        return "%d hour%s ago" % (hours, "s" if hours > 1 else "")
 
     days = seconds / 86400
-    return "%d day%s ago" % (days, 's' if days > 1 else '')
+    return "%d day%s ago" % (days, "s" if days > 1 else "")
 
 
-def redirect(location='/'):
+def redirect(location="/"):
     return webob.exc.HTTPTemporaryRedirect(location=location)
 
+
 def json_response(result):
-    return webob.Response(json.dumps(result), content_type='application/json')
+    return webob.Response(json.dumps(result), content_type="application/json")
+
 
 def static_response(file):
     f = open(os.path.join(config.StaticPath, file))
@@ -75,12 +78,13 @@ def static_response(file):
     return webob.Response(html)
 
 
-#template
+# template
 def render(template, **kwargs):
-    kwargs.update({'disqus_name': config.DisqusName})
+    kwargs.update({"disqus_name": config.DisqusName})
     if config.GoogleAnalytics:
-        kwargs.update({'ga': config.GoogleAnalytics})
+        kwargs.update({"ga": config.GoogleAnalytics})
     return webob.Response(g.jj.get_template(template).render(kwargs))
+
 
 def rfc822(when=None):
     return time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(when))
@@ -89,6 +93,7 @@ def rfc822(when=None):
 def lock(string):
     key = "lock:" + string
     return g.redis.setnx(key, int(time.time()))
+
 
 def unlock(string):
     key = "lock:" + string

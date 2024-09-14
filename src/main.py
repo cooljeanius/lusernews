@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 
 from scgiwsgi import WSGIServer
@@ -9,12 +8,14 @@ import config
 
 pid = None
 
+
 def write_pid_file():
     global pid
     pid = os.getpid()
-    f = open(config.PidFile, 'w')
-    f.write(str(pid) + '\n')
+    f = open(config.PidFile, "w")
+    f.write(str(pid) + "\n")
     f.close()
+
 
 def remove_pid_file():
     if os.getpid() != pid:
@@ -24,13 +25,16 @@ def remove_pid_file():
     except OSError:
         pass
 
+
 try:
     os.chdir(os.path.expanduser(config.HomePath))
     write_pid_file()
-    logging.basicConfig(filename=config.LogFile,
-                        level=getattr(logging, config.LogLevel),
-                        format='%(asctime)s [%(levelname)s] %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(
+        filename=config.LogFile,
+        level=getattr(logging, config.LogLevel),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     logger = logging.getLogger()
 
     WSGIServer(application, logger).run(port=7778)

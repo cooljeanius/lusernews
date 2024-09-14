@@ -1,6 +1,6 @@
 import json
 import webob
-import oauth2  #requires httplib2 0.6
+import oauth2  # requires httplib2 0.6
 import util
 import config
 import globals as g
@@ -11,88 +11,90 @@ from user import *
 #
 
 oauth_settings = {
-    'client_id': config.github_client_id,
-    'client_secret': config.github_secret,
-    'base_url': 'https://github.com/login/oauth/',
-    'redirect_url': config.github_callback_url,
+    "client_id": config.github_client_id,
+    "client_secret": config.github_secret,
+    "base_url": "https://github.com/login/oauth/",
+    "redirect_url": config.github_callback_url,
 }
 
+
 def auth(request):
-    auth_user(request.cookies.get('auth'))
+    auth_user(request.cookies.get("auth"))
     if g.user:
-        return util.redirect('/')
+        return util.redirect("/")
 
     oauth_client = oauth2.Client2(
-        oauth_settings['client_id'],
-        oauth_settings['client_secret'],
-        oauth_settings['base_url']
-        )
+        oauth_settings["client_id"],
+        oauth_settings["client_secret"],
+        oauth_settings["base_url"],
+    )
     authorization_url = oauth_client.authorization_url(
-        redirect_uri = oauth_settings['redirect_url'],
+        redirect_uri=oauth_settings["redirect_url"],
         # params={'scope': 'user'}
-        )
+    )
     return util.redirect(authorization_url)
 
 
 # this function is slow
 def callback(request):
-    auth_user(request.cookies.get('auth'))
+    auth_user(request.cookies.get("auth"))
     if g.user:
-        return util.redirect('/')
+        return util.redirect("/")
 
     oauth_client = oauth2.Client2(
-        oauth_settings['client_id'],
-        oauth_settings['client_secret'],
-        oauth_settings['base_url']
-        )
+        oauth_settings["client_id"],
+        oauth_settings["client_secret"],
+        oauth_settings["base_url"],
+    )
 
-    code = request.GET.get('code')
+    code = request.GET.get("code")
     if not code:
-        return util.render('error.pat', user=None,
-                           error="no code")
+        return util.render("error.pat", user=None, error="no code")
 
     try:
-        data = oauth_client.access_token(code, oauth_settings['redirect_url'])
-    except Exception as e:
-        return util.render('error.pat', user=None,
-                           error="failed to get access token, try again")
-    access_token = data.get('access_token')
+        data = oauth_client.access_token(code, oauth_settings["redirect_url"])
+    except Exception:
+        return util.render(
+            "error.pat", user=None, error="failed to get access token, try again"
+        )
+    access_token = data.get("access_token")
 
     (headers, body) = oauth_client.request(
-        'https://api.github.com/user',
+        "https://api.github.com/user",
         access_token=access_token,
-        token_param='access_token'
-        )
+        token_param="access_token",
+    )
 
     error = 0
     try:
-        if headers['status'] == '200':
+        if headers["status"] == "200":
             user = json.loads(body)
-            username = user['login']
-            email = user.get('email', '')
+            username = user["login"]
+            email = user.get("email", "")
         else:
             error = 1
-    except Exception as e:
+    except Exception:
         error = 1
 
     if error:
-        return util.render('error.pat', user=None, error='bad login, try again')
+        return util.render("error.pat", user=None, error="bad login, try again")
 
     user = get_user_by_name(username)
     if not user:
-        #create new user
+        # create new user
         auth, msg = create_user_github(username, email)
         if not auth:
-            return util.render('error.pat', user=None, error=msg)
+            return util.render("error.pat", user=None, error=msg)
     else:
-        if 'g' in user['flags']:
-            auth = user['auth']
+        if "g" in user["flags"]:
+            auth = user["auth"]
         else:
-            return util.render('error.pat', user=None, error='account exists :(')
+            return util.render("error.pat", user=None, error="account exists :(")
 
-    res = webob.exc.HTTPTemporaryRedirect(location='/')
-    res.headers['Set-Cookie'] = 'auth=' + auth + \
-        '; expires=Thu, 1 Aug 2030 20:00:00 UTC; path=/';
+    res = webob.exc.HTTPTemporaryRedirect(location="/")
+    res.headers["Set-Cookie"] = (
+        "auth=" + auth + "; expires=Thu, 1 Aug 2030 20:00:00 UTC; path=/"
+    )
     return res
 
 
@@ -109,7 +111,7 @@ def create_user_github(username, email):
     if r.exists("username.to.id:" + username):
         return None, "Username exists, please try a different one."
 
-    if not util.lock('create_user.' + username):
+    if not util.lock("create_user." + username):
         return None, "Please wait some time before creating a new user."
 
     user_id = r.incr("users.count")
@@ -117,7 +119,9 @@ def create_user_github(username, email):
     now = int(time.time())
 
     pl = r.pipeline()
-    pl.hmset("user:%s" % user_id, {
+    pl.hmset(
+        "user:%s" % user_id,
+        {
             "id": user_id,
             "username": username,
             "ctime": now,
@@ -126,16 +130,16 @@ def create_user_github(username, email):
             "email": email,
             "auth": auth_token,
             "apisecret": util.get_rand(),
-            "flags": "g", #github user
+            "flags": "g",  # github user
             "karma_incr_time": now,
             "replies": 0,
-            })
+        },
+    )
 
     pl.set("username.to.id:" + username, user_id)
     pl.set("auth:" + auth_token, user_id)
 
     pl.execute()
-    util.unlock('create_user.' + username)
+    util.unlock("create_user." + username)
 
     return auth_token, None
-
