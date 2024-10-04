@@ -255,7 +255,6 @@ def update_news_rank_if_needed(r, n):
 # Redis pipelining.
 def get_news_by_id(news_ids, update_rank=False):
     single = False
-    result = []
     if not isinstance(news_ids, list):
         single = True
         news_ids = [news_ids]
